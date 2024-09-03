@@ -3,13 +3,23 @@ from bs4 import BeautifulSoup
 import requests
 
 
-with open("tabela.json", "r", encoding="utf-8") as input_file:
-   tabela = json.load(input_file)
+try:
+    with open("tabela.json", "r", encoding="utf-8") as input_file:
+        tabela = json.load(input_file)
 
-if len(tabela["tabela"]) > 0:
-   tabela["tabela"].clear()
+except FileNotFoundError as e:
+    tabela = {"Tabela": []}
 
-url = requests.get("http://www.90minut.pl/liga/1/liga13484.html")
+except json.decoder.JSONDecodeError as je:
+    tabela = {"Tabela": []}
+
+
+
+#if len(tabela["Tabela"]) > 0:
+#    tabela["Tabela"].clear()
+Nazwa_Ligi = input("Podaj nazwe ligi: ")
+link_do_90_minut = input("Podaj link do ligi: ")
+url = requests.get(link_do_90_minut)
 soup = BeautifulSoup(url.content, "html.parser")
 p = soup.find_all("p")
 daneztabeli = []
@@ -33,7 +43,7 @@ for i in daneztabeli[0]:
         for s in f:
             danecalewstringu.append(s)
 
-
+tabela["Tabela"].append({f"{Nazwa_Ligi}": []})
 
 danecalewstringu[0:danecalewstringu.index('Nazwa')] = ""
 sezondruzyn = [danecalewstringu[danecalewstringu.index(f"{r + 1}."):danecalewstringu.index(f"{r + 1}.") + 15] for r in range(len(tabelabklasa[0]))]
@@ -58,7 +68,7 @@ for r in range(len(sezondruzyn)):
         "P.W.": sezondruzyn[r][goratabeli.index('P.') + 8],
         "Bramki W.": sezondruzyn[r][goratabeli.index('Bramki') + 8],
     })
-    tabela["tabela"].append({"Pozycja": sezondruzyn[r][goratabeli.index('Nazwa')],
+    tabela["Tabela"][-1][Nazwa_Ligi].append({"Pozycja": sezondruzyn[r][goratabeli.index('Nazwa')],
         "Nazwa": [i for i in tabelabklasa[0]][r],
         goratabeli[goratabeli.index('M.')]: sezondruzyn[r][goratabeli.index('M.')],
         goratabeli[goratabeli.index('Pkt.')]: sezondruzyn[r][goratabeli.index('Pkt.')],
