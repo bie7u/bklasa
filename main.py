@@ -1,7 +1,10 @@
 import json
+from types import NoneType
+
 from bs4 import BeautifulSoup
 import requests
 
+link_do_90_minut = input("Podaj link do ligi: ")
 
 try:
     with open("tabela.json", "r", encoding="utf-8") as input_file:
@@ -13,15 +16,39 @@ except FileNotFoundError as e:
 except json.decoder.JSONDecodeError as je:
     tabela = {"Tabela": []}
 
-
-
 #if len(tabela["Tabela"]) > 0:
-#    tabela["Tabela"].clear()
-Nazwa_Ligi = input("Podaj nazwe ligi: ")
-link_do_90_minut = input("Podaj link do ligi: ")
-url = requests.get(link_do_90_minut)
+#   tabela["Tabela"].clear()
+
+
+url = requests.get(f"{link_do_90_minut}") # Aklasa
 soup = BeautifulSoup(url.content, "html.parser")
+Nazwaligiszukana = soup.find_all("table", class_="main2")
+
+Nazwa_Ligi = ""
+for nazwa in Nazwaligiszukana:
+    if not isinstance(nazwa.find("td", class_="main"), type(None)):
+        Nazwa_Ligi = nazwa.find("td", class_="main").text.strip()
+
+
+
+for slowniki_z_nazwami_lig in tabela["Tabela"]:
+    for k_z_nazwa_ligi in slowniki_z_nazwami_lig:
+        if Nazwa_Ligi == k_z_nazwa_ligi:
+            link_do_90_minut = input("Podaj link do ligi bo ta liga jest juz zeskrapowana: ")
+            url = requests.get(f"{link_do_90_minut}")  # Aklasa
+            soup = BeautifulSoup(url.content, "html.parser")
+            Nazwaligiszukana = soup.find_all("table", class_="main2")
+            for nazwa in Nazwaligiszukana:
+                if not isinstance(nazwa.find("td", class_="main"), type(None)) and nazwa.find("td", class_="main").text.strip() != k_z_nazwa_ligi :
+                    Nazwa_Ligi = nazwa.find("td", class_="main").text.strip()
+
+
 p = soup.find_all("p")
+tablezterminarzem = soup.find_all("table", class_="main")
+
+
+
+
 daneztabeli = []
 calosc = []
 danecalewstringu = []
@@ -36,6 +63,7 @@ for i in p:
 tabelabklasa = [[i.text for i in info.find_all("a", class_="main")] for info in daneztabeli[0]]
 
 
+
 for i in daneztabeli[0]:
     druzyny = [t.text.split() for t in i.find_all("td")]
     test1 = [druzyny.pop(druzyny.index(i)) for i in druzyny if i in [d.split(" ") for d in tabelabklasa[0]]]
@@ -43,10 +71,113 @@ for i in daneztabeli[0]:
         for s in f:
             danecalewstringu.append(s)
 
+kolejka_td = []
+
+for td in tablezterminarzem:
+    kolejka_td.append(td.find("td"))
+b_szukane_kolejki = ""
+for b_kolejki in kolejka_td:
+    if not isinstance(b_kolejki.find("b"), type(None)) and "Kolejka" in b_kolejki.find("b").text:
+        b_szukane_kolejki += f"{b_kolejki.find("b").text},"
+
+
+if len(tabelabklasa[0]) % 2 == 0:
+    b_szukane_kolejki = b_szukane_kolejki.split(",")[0:(len(tabelabklasa[0]) - 1) * 2]
+if len(tabelabklasa[0]) % 2 != 0:
+    b_szukane_kolejki = b_szukane_kolejki.split(",")[0:len(tabelabklasa[0]) * 2]
+
+terminarz_td = []
+data_tr = []
+
+
+for b_druzyn in tablezterminarzem:
+    terminarz_td.append(b_druzyn.find_all("b"))
+    data_tr.append(b_druzyn.find_all("tr"))
+
+caly_terminarz = []
+
+
+for data_td in data_tr:
+    for td in data_td:
+        caly_terminarz.append([td.text.replace("\n", "").replace("\xa0", "")])
+
+wszystkie_druzyny_stringu = ""
+for druzyna in tabelabklasa[0]:
+    wszystkie_druzyny_stringu += f"{druzyna} "
+
+
+mecze_terminarz = []
+for i in caly_terminarz:
+    for testi in i:
+        for r in range(len(tabelabklasa[0])):
+            if tabelabklasa[0][r] in testi and not "karnego" in testi:
+                mecze_terminarz.append(testi)
+        if "Kolejka" in testi:
+            mecze_terminarz.append(testi)
+indexy_kolejek = []
+
+for kolejki in mecze_terminarz:
+    if not "Kolejka" in kolejki:
+        mecze_terminarz.remove(kolejki)
+
+for i in b_szukane_kolejki:
+    indexy_kolejek.append(mecze_terminarz.index(i))
+
+caly_terminarz_wliscie = []
+for r in range(1, len(indexy_kolejek) + 1):
+    try:
+        caly_terminarz_wliscie.append(mecze_terminarz[indexy_kolejek[r - 1] + 1: indexy_kolejek[r]])
+    except IndexError:
+        caly_terminarz_wliscie.append(mecze_terminarz[indexy_kolejek[r - 1] + 1:])
+
+
+frekwencja_do_usuniecia_w_liscie = []
+
+for i in caly_terminarz_wliscie:
+    for testi1 in i:
+        try:
+            frekwencja_do_usuniecia_w_liscie.append(f'({testi1.split(",")[1].split("(")[1]}')
+        except IndexError:
+            pass
+terminarzwstringu = ""
+
+for i in mecze_terminarz:
+    i = i.replace(",", "")
+    terminarzwstringu += f"{i.strip(" ")}, "
+
+
+
+for r in range(len(frekwencja_do_usuniecia_w_liscie)):
+    terminarzwstringu = terminarzwstringu.replace(frekwencja_do_usuniecia_w_liscie[r], "")
+
+terminarzwliscie2 = terminarzwstringu.split(",")
+
+
+
+claly_terminarz_liscie_bez_frekwencji = []
+
+for r in range(1, len(indexy_kolejek) + 1):
+    try:
+        claly_terminarz_liscie_bez_frekwencji.append(terminarzwliscie2[indexy_kolejek[r - 1] + 1: indexy_kolejek[r]])
+    except IndexError:
+        claly_terminarz_liscie_bez_frekwencji.append(terminarzwliscie2[indexy_kolejek[r - 1] + 1:])
+
+
+lol = {}
+
+for r in range(len(b_szukane_kolejki)):
+    lol[b_szukane_kolejki[r]] = claly_terminarz_liscie_bez_frekwencji[r]
+
+
+
+
 tabela["Tabela"].append({f"{Nazwa_Ligi}": []})
 
 danecalewstringu[0:danecalewstringu.index('Nazwa')] = ""
-sezondruzyn = [danecalewstringu[danecalewstringu.index(f"{r + 1}."):danecalewstringu.index(f"{r + 1}.") + 15] for r in range(len(tabelabklasa[0]))]
+try:
+    sezondruzyn = [danecalewstringu[danecalewstringu.index(f"{r + 1}."):danecalewstringu.index(f"{r + 1}.") + 15] for r in range(len(tabelabklasa[0]))]
+except ValueError as e:
+    print(e)
 goratabeli = danecalewstringu[:15]
 
 for r in range(len(sezondruzyn)):
@@ -87,8 +218,9 @@ for r in range(len(sezondruzyn)):
                             })
 print(test_lista)
 
-
-
+tabela["Tabela"][-1][Nazwa_Ligi].append({"Terminarz": {}})
+for r in range(len(b_szukane_kolejki)):
+   tabela["Tabela"][-1][Nazwa_Ligi][-1]['Terminarz'][b_szukane_kolejki[r]] = claly_terminarz_liscie_bez_frekwencji[r]
 
 with open("tabela.json", "w", encoding="utf-8") as output_file:
-    json.dump(tabela, output_file, ensure_ascii=False, indent=4)
+     json.dump(tabela, output_file, ensure_ascii=False, indent=4)
